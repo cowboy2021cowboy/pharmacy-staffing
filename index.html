@@ -21,9 +21,9 @@ label{font-size:12px;color:var(--muted);display:block;margin-top:6px}
 input,select{width:100%;padding:7px 8px;border:1px solid #c9d1db;border-radius:6px;font-size:14px;background:var(--in)}
 .grid{display:grid;gap:8px}
 .g3{grid-template-columns:repeat(3,1fr)}
-.g4{grid-template-columns:repeat(4,1fr)}
+.g4{grid-template-columns:auto repeat(3,minmax(0,1fr));align-items:center}.g4 label{margin:0}
 table{width:100%;border-collapse:collapse;font-size:13px;background:#fff}
-th{background:var(--navy);color:#fff;padding:7px 5px;text-align:center;position:sticky;top:64px}
+th{background:var(--navy);color:#fff;padding:7px 5px;text-align:center;position:sticky;top:0;z-index:2}
 td{border:1px solid var(--line);padding:4px 5px;text-align:center}
 td.left{text-align:left;font-weight:600}
 td input{padding:4px;font-size:13px}
@@ -44,7 +44,19 @@ button.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
 .section{display:none}
 .section.on{display:block}
 .step{margin:8px 0;padding:8px;background:#f7f9fb;border-radius:8px}
-@media(max-width:800px){th{top:92px}.g3,.g4{grid-template-columns:1fr 1fr}}
+@media(max-width:800px){.g3{grid-template-columns:1fr 1fr}}
+[hidden]{display:none!important}
+header{flex-wrap:wrap}
+.strip{flex-basis:100%;display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:12px;padding:3px 10px;border-radius:99px;background:rgba(255,255,255,.15);color:#fff}
+.chip.ok,.chip.short,.chip.tight{color:var(--ink)}
+.stale{background:#fdebd0;border:1px solid #e0b070;padding:10px 12px;border-radius:8px;margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tw{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:8px}
+td input{min-width:56px}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+button.danger{background:#a93226}
+td.short,td.ok{font-variant-numeric:tabular-nums}
+@media print{header,.tabs,button{display:none}}
 </style>
 </head>
 <body>
@@ -54,8 +66,10 @@ button.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
     <p>One board. Everyone sees the same queue and heads.</p>
   </div>
   <div id="status" class="badge off">Not shared yet</div>
+  <div id="strip" class="strip" aria-live="polite"></div>
 </header>
 <div class="wrap">
+  <div id="stale" class="stale" hidden><span><b>These numbers are from an earlier day.</b> Start fresh for today?</span><button onclick="newDay()">Start new day</button><button class="ghost" onclick="this.parentNode.hidden=true">Keep editing</button></div>
   <div class="row">
     <div class="card">
       <h2>Day</h2>
@@ -76,11 +90,11 @@ button.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
       <div class="grid g4">
         <div></div><div><label>To 16:00</label></div><div><label>To 17:00</label></div><div><label>To 19:00</label></div>
         <div><label>RPh hours</label></div>
-        <input id="rph16" type="number" step="0.5" value="0"><input id="rph17" type="number" step="0.5" value="0"><input id="rph19" type="number" step="0.5" value="0">
+        <input id="rph16" type="number" inputmode="decimal" step="0.5" value="0"><input id="rph17" type="number" inputmode="decimal" step="0.5" value="0"><input id="rph19" type="number" inputmode="decimal" step="0.5" value="0">
         <div><label>Tech hours</label></div>
-        <input id="tech16" type="number" step="0.5" value="0"><input id="tech17" type="number" step="0.5" value="0"><input id="tech19" type="number" step="0.5" value="0">
+        <input id="tech16" type="number" inputmode="decimal" step="0.5" value="0"><input id="tech17" type="number" inputmode="decimal" step="0.5" value="0"><input id="tech19" type="number" inputmode="decimal" step="0.5" value="0">
         <div><label>Associate hours</label></div>
-        <input id="fa16" type="number" step="0.5" value="0"><input id="fa17" type="number" step="0.5" value="0"><input id="fa19" type="number" step="0.5" value="0">
+        <input id="fa16" type="number" inputmode="decimal" step="0.5" value="0"><input id="fa17" type="number" inputmode="decimal" step="0.5" value="0"><input id="fa19" type="number" inputmode="decimal" step="0.5" value="0">
       </div>
     </div>
     <div class="card">
@@ -88,11 +102,11 @@ button.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
       <div class="grid g4">
         <div></div><div><label>Early</label></div><div><label>Mid</label></div><div><label>Late</label></div>
         <div><label>RPh</label></div>
-        <input id="rphE" type="number" step="1" value="0"><input id="rphM" type="number" step="1" value="0"><input id="rphL" type="number" step="1" value="0">
+        <input id="rphE" type="number" inputmode="decimal" step="1" value="0"><input id="rphM" type="number" inputmode="decimal" step="1" value="0"><input id="rphL" type="number" inputmode="decimal" step="1" value="0">
         <div><label>Tech</label></div>
-        <input id="techE" type="number" step="1" value="0"><input id="techM" type="number" step="1" value="0"><input id="techL" type="number" step="1" value="0">
+        <input id="techE" type="number" inputmode="decimal" step="1" value="0"><input id="techM" type="number" inputmode="decimal" step="1" value="0"><input id="techL" type="number" inputmode="decimal" step="1" value="0">
         <div><label>Associate</label></div>
-        <input id="faE" type="number" step="1" value="0"><input id="faM" type="number" step="1" value="0"><input id="faL" type="number" step="1" value="0">
+        <input id="faE" type="number" inputmode="decimal" step="1" value="0"><input id="faM" type="number" inputmode="decimal" step="1" value="0"><input id="faL" type="number" inputmode="decimal" step="1" value="0">
       </div>
     </div>
   </div>
@@ -105,7 +119,7 @@ button.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
   </div>
   <div id="tasks" class="section on">
     <p class="hint">Hours = (units + v-not-pack) ÷ rate. Done 7:00: Early from 7:00, Mid joins 9:00 RPh / 8:30 Tech, Late joins 11:00 / 10:30.</p>
-    <div style="overflow:auto">
+    <div class="tw">
     <table id="taskTable"><thead><tr>
       <th>Role</th><th>Task</th><th>Rate</th><th>Unit</th>
       <th>Early</th><th>Mid</th><th>Late</th><th>Total</th>
@@ -133,7 +147,7 @@ button.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
     <div class="card">
       <h2>Connect the shared board</h2>
       <p class="hint">Do this once. Then send the website link and the PIN to the team. Everyone edits the same numbers.</p>
-      <div class="step"><b>1.</b> Create a free project at <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a>. Click Build → Realtime Database → Create database → start in test mode.</div>
+      <div class="step"><b>1.</b> Create a free project at <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a>. Click Build → Realtime Database → Create database → start in test mode (test mode expires after 30 days; after that, set the rules to allow read and write, or the board stops saving).</div>
       <div class="step"><b>2.</b> Copy the database URL. It looks like <code>https://your-project-default-rtdb.firebaseio.com</code>.</div>
       <div class="step"><b>3.</b> Paste it below and set a PIN. Save. Host this file on Netlify Drop so the team has one link.</div>
       <label>Firebase database URL</label>
@@ -159,7 +173,7 @@ button.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
         <li>Associates do Spark labeling, help RPh Spark, pen line (3 FA per tech), then prepack.</li>
       </ol>
       <p class="hint">Pen line rate = tech pen rate ÷ 3. Changes sync about every 8 seconds when the board is connected.</p>
-      <button id="reset">Clear all inputs</button>
+      <button id="reset" class="danger">Start new day (clear all)</button>
     </div>
   </div>
 </div>
@@ -189,7 +203,9 @@ const TASKS = [
 const OFF = ["Lab","Inventory","Safecor","Return"];
 const META = ["date","check","scenario","rph16","rph17","rph19","tech16","tech17","tech19","fa16","fa17","fa19","rphE","rphM","rphL","techE","techM","techL","faE","faM","faL"];
 const state = {tasks:{}, off:{}};
-let applying = false, saveTimer = null, lastStamp = 0;
+let applying = false, saveTimer = null, lastStamp = 0, boardOk = false, pinHash = "";
+const toMin=s=>{const p=s.split(":");return p.length==2?(+p[0])*60+(+p[1]):1e9};
+function setDone(id,txt,cold){const el=document.getElementById(id);el.textContent=txt;const m=toMin(txt);el.className=!txt?"":(txt.startsWith("after")||m>1140||(cold&&m>960))?"short":"ok"}
 function rateOf(t){ return t.rates[document.getElementById("scenario").value] || t.rates.high }
 function n(id){ return parseFloat(document.getElementById(id).value)||0 }
 function hm(mins){
@@ -250,15 +266,15 @@ function renderTasks(){
     const tr = document.createElement("tr");
     tr.className = t.role==="Pharmacist"?"rph":t.role==="Technician"?"tech":"fa";
     tr.innerHTML = `<td class="left">${t.role}</td><td class="left">${t.name}</td><td>${rateOf(t).toFixed(1)}</td><td>${t.unit}</td>
-      <td><input data-k="e" data-id="${t.id}" type="number" step="0.5" value="${s.e}"></td>
-      <td><input data-k="m" data-id="${t.id}" type="number" step="0.5" value="${s.m}"></td>
-      <td><input data-k="l" data-id="${t.id}" type="number" step="0.5" value="${s.l}"></td>
+      <td><input data-k="e" data-id="${t.id}" type="number" inputmode="decimal" step="0.5" value="${s.e}"></td>
+      <td><input data-k="m" data-id="${t.id}" type="number" inputmode="decimal" step="0.5" value="${s.m}"></td>
+      <td><input data-k="l" data-id="${t.id}" type="number" inputmode="decimal" step="0.5" value="${s.l}"></td>
       <td id="tot-${t.id}">0</td>
-      <td><input data-k="u7" data-id="${t.id}" type="number" step="1" value="${s.u7}"></td>
-      <td><input data-k="v7" data-id="${t.id}" type="number" step="1" value="${s.v7}"></td>
+      <td><input data-k="u7" data-id="${t.id}" type="number" inputmode="decimal" step="1" value="${s.u7}"></td>
+      <td><input data-k="v7" data-id="${t.id}" type="number" inputmode="decimal" step="1" value="${s.v7}"></td>
       <td id="h7-${t.id}">0</td><td id="d7-${t.id}"></td>
-      <td><input data-k="u11" data-id="${t.id}" type="number" step="1" value="${s.u11}"></td>
-      <td><input data-k="v11" data-id="${t.id}" type="number" step="1" value="${s.v11}"></td>
+      <td><input data-k="u11" data-id="${t.id}" type="number" inputmode="decimal" step="1" value="${s.u11}"></td>
+      <td><input data-k="v11" data-id="${t.id}" type="number" inputmode="decimal" step="1" value="${s.v11}"></td>
       <td id="h11-${t.id}">0</td><td id="d11-${t.id}"></td>`;
     tb.appendChild(tr);
   });
@@ -269,7 +285,7 @@ function renderOff(){
   OFF.forEach(name=>{
     const s = state.off[name] || {rh:0,th:0,fh:0,rhr:0,thr:0,fhr:0};
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td class="left">${name}</td>`+["rh","th","fh","rhr","thr","fhr"].map(k=>`<td><input data-off="${name}" data-k="${k}" type="number" step="0.5" value="${s[k]}"></td>`).join("");
+    tr.innerHTML = `<td class="left">${name}</td>`+["rh","th","fh","rhr","thr","fhr"].map(k=>`<td><input data-off="${name}" data-k="${k}" type="number" inputmode="decimal" step="0.5" value="${s[k]}"></td>`).join("");
     tb.appendChild(tr);
   });
 }
@@ -285,14 +301,16 @@ function calc(){
     tot.textContent = (s.e+s.m+s.l).toFixed(1);
     document.getElementById("h7-"+t.id).textContent = h7.toFixed(2);
     document.getElementById("h11-"+t.id).textContent = h11.toFixed(2);
-    document.getElementById("d7-"+t.id).textContent = done7(h7, s.e, s.m, s.l, t.role);
-    document.getElementById("d11-"+t.id).textContent = done11(h11, s.e, s.m, s.l, t.role);
+    setDone("d7-"+t.id, done7(h7, s.e, s.m, s.l, t.role), t.id==="penV"||t.id==="penP");
+    setDone("d11-"+t.id, done11(h11, s.e, s.m, s.l, t.role), t.id==="penV"||t.id==="penP");
     sum[t.role].e += s.e; sum[t.role].m += s.m; sum[t.role].l += s.l; sum[t.role].h += h7;
   });
   const avail = {Pharmacist:[n("rphE"),n("rphM"),n("rphL")], Technician:[n("techE"),n("techM"),n("techL")], Associate:[n("faE"),n("faM"),n("faL")]};
+  window._over=0;
   let html = "<table><tr><th></th><th>Early left</th><th>Mid left</th><th>Late left</th></tr>";
   for(const role of ["Pharmacist","Technician","Associate"]){
     const a = avail[role], s = sum[role];
+    window._over += (s.e>a[0])+(s.m>a[1])+(s.l>a[2]);
     html += `<tr><td class="left">${role}</td>
       <td class="${s.e>a[0]?'short':'ok'}">${(a[0]-s.e).toFixed(1)}</td>
       <td class="${s.m>a[1]?'short':'ok'}">${(a[1]-s.m).toFixed(1)}</td>
@@ -364,11 +382,15 @@ function waterfall(deduct){
     ${row("Gap after 4pm",gapV,gapP)}
     <tr><td class="left">Status</td><td class="${cls(status(rph16-coldV))}">${rph16>=coldV?"COLD OK":"COLD SHORT"} / ${status(gapV)==="OK"?"EVE OK":"EVE "+status(gapV)}</td><td class="${cls(status(tech16-coldP))}">${tech16>=coldP?"COLD OK":"COLD SHORT"} / ${status(gapP)==="OK"?"EVE OK":"EVE "+status(gapP)}</td></tr>
   </table><p class="hint">Negative gap = short after 4pm. Cold short = move people onto Pens now.</p>`;
+  const ce=(h,need)=>h>=need?"OK":"SHORT";
+  const chip=(l,st)=>`<span class="chip ${cls(st)}">${l} ${st}</span>`;
+  document.getElementById("strip").innerHTML = (coldV+coldP+ambV+ambP)<=0 ? '<span class="chip">Enter the 7:00 queue to see status</span>' :
+    chip("Cold RPh",ce(rph16,coldV))+chip("Cold Tech",ce(tech16,coldP))+chip("After 4pm RPh",status(gapV))+chip("After 4pm Tech",status(gapP))+(window._over?`<span class="chip short">${window._over} shift slot(s) over-assigned</span>`:"");
 }
 function snapshot(){
   const meta = {};
   META.forEach(id=>meta[id]=document.getElementById(id).value);
-  return {pin:document.getElementById("pin").value, stamp:Date.now(), meta, tasks:state.tasks, off:state.off};
+  return {pinHash, stamp:Date.now(), meta, tasks:state.tasks, off:state.off};
 }
 function applySnapshot(d){
   if(!d) return;
@@ -377,12 +399,13 @@ function applySnapshot(d){
   Object.assign(state.off, d.off||{});
   if(d.meta) for(const [k,v] of Object.entries(d.meta)){
     const el = document.getElementById(k);
-    if(el) el.value = v;
+    if(el && el!==document.activeElement) el.value = v;
   }
   lastStamp = d.stamp||0;
-  renderTasks();
-  renderOff();
+  if(!document.querySelector("#taskTable tbody").children.length){ renderTasks(); renderOff(); }
+  else refreshInputs();
   calc();
+  checkStale();
   applying = false;
 }
 function saveLocal(){
@@ -404,6 +427,9 @@ function schedulePush(){
 async function pushBoard(){
   const base = fbBase();
   if(!base) return;
+  saveTimer = null;
+  if(!boardOk){ await pullBoard(); if(!boardOk) return; }
+  pinHash = await hashPin(document.getElementById("pin").value);
   const body = snapshot();
   lastStamp = body.stamp;
   try{
@@ -423,13 +449,16 @@ async function pullBoard(){
     const res = await fetch(base+"/board.json");
     if(!res.ok) throw new Error("HTTP "+res.status);
     const d = await res.json();
-    if(!d){ setStatus(true, "Shared · empty"); return; }
-    if(d.pin && document.getElementById("pin").value && d.pin !== document.getElementById("pin").value){
-      document.getElementById("shareMsg").textContent = "PIN does not match the board.";
+    if(!d){ boardOk = true; setStatus(true, "Shared · empty"); pushBoard(); return; }
+    const pv = document.getElementById("pin").value, ph = await hashPin(pv);
+    if((d.pinHash||d.pin) && (!pv || (d.pinHash ? d.pinHash!==ph : d.pin!==pv))){
+      boardOk = false;
+      document.getElementById("shareMsg").textContent = pv ? "PIN does not match the board." : "This board needs the team PIN.";
       setStatus(false, "Wrong PIN");
       return;
     }
-    if((d.stamp||0) > lastStamp) applySnapshot(d);
+    boardOk = true;
+    if((d.stamp||0) > lastStamp && !saveTimer) applySnapshot(d);
     setStatus(true, "Shared · live");
     document.getElementById("shareMsg").textContent = "Connected. Team changes show up within a few seconds.";
   }catch(e){
@@ -437,13 +466,29 @@ async function pullBoard(){
     document.getElementById("shareMsg").textContent = "Could not load. "+e.message;
   }
 }
-document.getElementById("date").value = new Date().toISOString().slice(0,10);
+function today(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
+function checkStale(){const v=document.getElementById("date").value;document.getElementById("stale").hidden=!v||v===today()}
+async function hashPin(p){if(!p)return "";try{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("pharm:"+p));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}catch(e){return "p:"+p}}
+function refreshInputs(){
+  document.querySelectorAll("input[data-id]").forEach(el=>{ if(el===document.activeElement) return; const s=state.tasks[el.dataset.id]; el.value = s? (s[el.dataset.k]||0) : 0; });
+  document.querySelectorAll("input[data-off]").forEach(el=>{ if(el===document.activeElement) return; const s=state.off[el.dataset.off]; el.value = s? (s[el.dataset.k]||0) : 0; });
+}
+function newDay(){
+  if(!confirm("Clear every number"+(fbBase()?" for the whole team":"")+" and start today?")) return;
+  state.tasks={}; state.off={};
+  META.forEach(id=>{ if(id!=="check" && id!=="scenario") document.getElementById(id).value = id==="date"? today() : 0; });
+  refreshInputs(); calc(); checkStale();
+}
+document.body.addEventListener("focusin",e=>{ if(e.target.type==="number") e.target.select(); });
+document.getElementById("date").value = today();
 loadLocal();
 if(!document.querySelector("#taskTable tbody").children.length){ renderTasks(); renderOff(); }
 calc();
+checkStale();
 document.body.addEventListener("input", e=>{
   const t = e.target;
-  if(t.id==="fbUrl" || t.id==="pin"){ saveLocal(); return; }
+  if(t.id==="fbUrl" || t.id==="pin"){ boardOk=false; saveLocal(); return; }
+  if(t.id==="date") checkStale();
   if(t.dataset.id){
     state.tasks[t.dataset.id] = state.tasks[t.dataset.id] || {e:0,m:0,l:0,u7:0,v7:0,u11:0,v11:0};
     state.tasks[t.dataset.id][t.dataset.k] = parseFloat(t.value)||0;
@@ -462,9 +507,7 @@ document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
 });
 document.getElementById("connect").onclick = pullBoard;
 document.getElementById("pushNow").onclick = pushBoard;
-document.getElementById("reset").onclick=()=>{
-  if(confirm("Clear all typed numbers on this device?")){ storeDel("pharmStaff"); location.reload(); }
-};
+document.getElementById("reset").onclick = newDay;
 setInterval(()=>{ if(fbBase()) pullBoard(); }, 8000);
 if(fbBase()) pullBoard();
 </script>
