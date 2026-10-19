@@ -492,6 +492,7 @@ function pt(x){const m=String(x).trim().match(/^(\d{1,2})(?::(\d{2}))?(?::\d{2})
 function times(sv,ev){let a,b;if(ev!==undefined&&String(ev).trim()!==""){a=pt(sv);b=pt(ev)}else{const p=String(sv).trim().split(/\s*(?:-|–|—|\bto\b)\s*/i);if(p.length<2)return null;a=pt(p[0]);b=pt(p[1])}if(isNaN(a)||isNaN(b))return null;if(b<=a)b+=720;return [a,b]}
 function pd(x){x=String(x).trim();let m=x.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0");m=x.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(m){let y=+m[3];if(y<100)y+=2000;return y+"-"+m[1].padStart(2,"0")+"-"+m[2].padStart(2,"0")}const d=new Date(/\d{4}/.test(x)?x:x+" "+new Date().getFullYear());return isNaN(d)?"":d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 const hhmm=s=>{const p=(s||"").split(":");return p.length>1?(+p[0])*60+(+p[1]):NaN};
+function parseCSV(t){const rows=[];let r=[],c="",q=false;t=t.replace(/^\uFEFF/,"");for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}else if(ch==='"')q=true;else if(ch===","){r.push(c);c=""}else if(ch==="\n"||ch==="\r"){if(ch==="\r"&&t[i+1]==="\n")i++;r.push(c);rows.push(r);r=[];c=""}else c+=ch}if(c!==""||r.length){r.push(c);rows.push(r)}return rows}
 /*IMP-END*/
 const imp={emp:null,sch:null,result:null};
 const FIELDS={
@@ -500,12 +501,15 @@ const FIELDS={
 };
 const ix=(t,k)=>{const e=document.getElementById("m-"+t+"-"+k);return e?+e.value:-1};
 async function loadTab(file,want){
-  if(!window.XLSX) throw new Error("the spreadsheet reader did not load (needs an internet connection)");
-  let wb;
-  if(/\.csv$/i.test(file.name)) wb=XLSX.read(await file.text(),{type:"string",raw:true});
-  else wb=XLSX.read(new Uint8Array(await file.arrayBuffer()),{type:"array"});
-  const nm=wb.SheetNames.find(x=>x.toLowerCase().replace(/\s/g,"")===want.toLowerCase())||wb.SheetNames[0];
-  const rows=XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,raw:false,defval:"",blankrows:false});
+  let nm=file.name,rows;
+  if(/\.csv$/i.test(file.name)) rows=parseCSV(await file.text());
+  else{
+    if(!window.XLSX) throw new Error("the Excel reader did not load (it needs internet). Download each tab as CSV instead.");
+    const wb=XLSX.read(new Uint8Array(await file.arrayBuffer()),{type:"array"});
+    nm=wb.SheetNames.find(x=>x.toLowerCase().replace(/\s/g,"")===want.toLowerCase())||wb.SheetNames[0];
+    rows=XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,raw:false,defval:""});
+  }
+  rows=rows.map(r=>r.map(c=>String(c==null?"":c).trim())).filter(r=>r.some(c=>c!==""));
   let hi=rows.findIndex(r=>r.filter(c=>String(c).trim()!=="").length>=2); if(hi<0) hi=0;
   return {tab:nm,headers:(rows[hi]||[]).map(c=>String(c).trim()),rows:rows.slice(hi+1)};
 }
@@ -539,13 +543,15 @@ function preview(){
   const roles={};
   imp.emp.rows.forEach(r=>{const rl=roleOf(r[ix("emp","role")]);[ix("emp","name"),ix("emp","id")].forEach(i=>{if(i>=0&&String(r[i]||"").trim())roles[norm(r[i])]=rl||roles[norm(r[i])]||""})});
   const RL=["Pharmacist","Technician","Associate"],cnt={},hrs={};RL.forEach(r=>{cnt[r]=[0,0,0];hrs[r]=[0,0,0]});
-  const dates=new Set(),unk=new Set();let rowsDay=0,badT=0,used=0;
+  const dates=new Set(),unk=new Set();let rowsDay=0,badT=0,used=0,offN=0;
   imp.sch.rows.forEach(r=>{
     const d=pd(r[ix("sch","date")]);if(d)dates.add(d);if(d!==date)return;rowsDay++;
     const who=r[ix("sch","who")],ri=ix("sch","role");
     const role=(ri>=0?roleOf(r[ri]):"")||roles[norm(who||"")]||"";
     if(!RL.includes(role)){unk.add(String(who||"").trim()||"(blank)");return}
-    const ei=ix("sch","end"),t=times(r[ix("sch","start")],ei>=0?r[ei]:undefined);
+    const ei=ix("sch","end"),sv=r[ix("sch","start")];
+    if(!String(sv||"").trim()&&!String(ei>=0?r[ei]:"").trim()){offN++;return}
+    const t=times(sv,ei>=0?r[ei]:undefined);
     if(!t){badT++;return}
     used++;cnt[role][t[0]<eL?0:t[0]<lL?1:2]++;
     [960,1020,1140].forEach((c,i)=>{hrs[role][i]+=Math.max(0,Math.min(t[1],c)-Math.max(t[0],from))/60});
@@ -554,11 +560,12 @@ function preview(){
   if(!rowsDay) h=`<p class="hint"><b>No schedule rows found for ${esc(date)}.</b> Dates read from the file: ${esc([...dates].sort().slice(-3).join(", ")||"none. Check the Date column.")}</p>`;
   else{
     h=`<table style="margin-top:10px"><tr><th></th><th>Early</th><th>Mid</th><th>Late</th><th>Hrs to 16:00</th><th>to 17:00</th><th>to 19:00</th></tr>`+RL.map(r=>`<tr><td class="left">${r}</td>${cnt[r].map(x=>`<td>${x}</td>`).join("")}${hrs[r].map(x=>`<td>${x.toFixed(1)}</td>`).join("")}</tr>`).join("")+`</table><p class="hint">${used} of ${rowsDay} rows for ${esc(date)} counted. Hours are counted from ${esc(document.getElementById("check").value||"07:00")} (Check time on the Day card; set it to 07:00 for the morning plan). Breaks are not subtracted.</p>`;
+    if(offN) h+=`<p class="hint">${offN} people are listed that day with no start/end time, so they are treated as off.</p>`;
     if(unk.size) h+=`<p class="hint"><b>Skipped (role not found):</b> ${esc([...unk].slice(0,12).join(", "))}${unk.size>12?"…":""}. Check the Role and Employee column choices.</p>`;
     if(badT) h+=`<p class="hint"><b>${badT} row(s)</b> skipped because the times could not be read.</p>`;
   }
   out.innerHTML=h;
-  if(used){imp.result={cnt,hrs};btn.disabled=false}
+  if(rowsDay){imp.result={cnt,hrs};btn.disabled=false}
 }
 function applyImport(){
   if(!imp.result)return;
