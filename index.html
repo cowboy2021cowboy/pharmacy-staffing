@@ -114,6 +114,7 @@ td.short,td.ok{font-variant-numeric:tabular-nums}
     <button class="on" data-tab="tasks">Tasks</button>
     <button data-tab="off">Off floor</button>
     <button data-tab="fall">Waterfall</button>
+    <button data-tab="imp">Import schedule</button>
     <button data-tab="share">Share board</button>
     <button data-tab="how">How to use</button>
   </div>
@@ -142,6 +143,22 @@ td.short,td.ok{font-variant-numeric:tabular-nums}
   <div id="fall" class="section">
     <p class="hint">Cold first. Leftover clock before 4pm goes to ambient. Net clock already removes off-floor hours.</p>
     <div class="card" id="fallCard"></div>
+  </div>
+  <div id="imp" class="section">
+    <div class="card">
+      <h2>Import schedule from Google Sheets</h2>
+      <p class="hint">In Google Sheets use File → Download → Microsoft Excel (.xlsx) for the whole workbook (upload it in both boxes and the right tab is picked), or CSV for one tab. Files are read in your browser only. Nothing is uploaded anywhere.</p>
+      <div class="grid g3">
+        <div><label>Employees file</label><input type="file" id="fEmp" accept=".csv,.xlsx,.xls"></div>
+        <div><label>ScheduleFull file</label><input type="file" id="fSch" accept=".csv,.xlsx,.xls"></div>
+        <div><label>Early = starts before · Late = starts at or after</label>
+          <div class="grid" style="grid-template-columns:1fr 1fr"><input id="cutE" type="time" value="08:30"><input id="cutL" type="time" value="10:30"></div></div>
+      </div>
+      <p id="impMsg" class="hint"></p>
+      <div id="impMap"></div>
+      <div id="impOut"></div>
+      <button id="impApply" disabled>Apply to board</button>
+    </div>
   </div>
   <div id="share" class="section">
     <div class="card">
@@ -177,6 +194,7 @@ td.short,td.ok{font-variant-numeric:tabular-nums}
     </div>
   </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const mem = {};
 function storeGet(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k]||null; } }
@@ -466,6 +484,93 @@ async function pullBoard(){
     document.getElementById("shareMsg").textContent = "Could not load. "+e.message;
   }
 }
+/*IMP-START*/
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const norm=s=>String(s).toLowerCase().replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(Boolean).sort().join(" ");
+function roleOf(t){t=String(t||"").toLowerCase();if(/tech/.test(t))return "Technician";if(/pharmacist|rph|\bpic\b/.test(t))return "Pharmacist";if(/assoc|\bfa\b|clerk|cashier|front/.test(t))return "Associate";return ""}
+function pt(x){const m=String(x).trim().match(/^(\d{1,2})(?::(\d{2}))?(?::\d{2})?\s*([ap])?\.?m?\.?$/i);if(!m)return NaN;let h=+m[1];const mi=+(m[2]||0),ap=(m[3]||"").toLowerCase();if(ap==="p"&&h<12)h+=12;if(ap==="a"&&h===12)h=0;return h*60+mi}
+function times(sv,ev){let a,b;if(ev!==undefined&&String(ev).trim()!==""){a=pt(sv);b=pt(ev)}else{const p=String(sv).trim().split(/\s*(?:-|–|—|\bto\b)\s*/i);if(p.length<2)return null;a=pt(p[0]);b=pt(p[1])}if(isNaN(a)||isNaN(b))return null;if(b<=a)b+=720;return [a,b]}
+function pd(x){x=String(x).trim();let m=x.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0");m=x.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(m){let y=+m[3];if(y<100)y+=2000;return y+"-"+m[1].padStart(2,"0")+"-"+m[2].padStart(2,"0")}const d=new Date(/\d{4}/.test(x)?x:x+" "+new Date().getFullYear());return isNaN(d)?"":d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+const hhmm=s=>{const p=(s||"").split(":");return p.length>1?(+p[0])*60+(+p[1]):NaN};
+/*IMP-END*/
+const imp={emp:null,sch:null,result:null};
+const FIELDS={
+  emp:[["name","Name",[/name/i,/employee|emp/i]],["id","ID (optional)",[/\bid\b|badge|number|#/i]],["role","Role",[/role|title|position|job|type|licen/i]]],
+  sch:[["who","Employee (name or ID)",[/name/i,/employee|emp/i,/\bid\b/i]],["date","Date",[/date/i,/day/i]],["start","Start time",[/start|begin|clock.?in|\bin\b|from/i,/time/i]],["end","End time (optional)",[/end|finish|clock.?out|\bout\b|\bto\b/i]],["role","Role (optional)",[/role|title|position|job/i]]]
+};
+const ix=(t,k)=>{const e=document.getElementById("m-"+t+"-"+k);return e?+e.value:-1};
+async function loadTab(file,want){
+  if(!window.XLSX) throw new Error("the spreadsheet reader did not load (needs an internet connection)");
+  let wb;
+  if(/\.csv$/i.test(file.name)) wb=XLSX.read(await file.text(),{type:"string",raw:true});
+  else wb=XLSX.read(new Uint8Array(await file.arrayBuffer()),{type:"array"});
+  const nm=wb.SheetNames.find(x=>x.toLowerCase().replace(/\s/g,"")===want.toLowerCase())||wb.SheetNames[0];
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,raw:false,defval:"",blankrows:false});
+  let hi=rows.findIndex(r=>r.filter(c=>String(c).trim()!=="").length>=2); if(hi<0) hi=0;
+  return {tab:nm,headers:(rows[hi]||[]).map(c=>String(c).trim()),rows:rows.slice(hi+1)};
+}
+function renderMap(){
+  const saved=JSON.parse(storeGet("impMap")||"{}");let h="";
+  [["emp","Employees columns"],["sch","ScheduleFull columns"]].forEach(([t,title])=>{
+    const d=imp[t];if(!d)return;const used=new Set();
+    h+=`<div class="step"><b>${title}</b> <span class="hint">(tab "${esc(d.tab)}", ${d.rows.length} rows)</span><div class="grid g3">`;
+    FIELDS[t].forEach(([k,lab,res])=>{
+      const want=(saved[t]||{})[k];let sel=-1;
+      if(want!==""){sel=d.headers.indexOf(want);if(sel<0)for(const re of res){sel=d.headers.findIndex((x,i)=>!used.has(i)&&re.test(x));if(sel>=0)break}}
+      if(sel>=0)used.add(sel);
+      h+=`<div><label>${lab}</label><select id="m-${t}-${k}" onchange="preview()"><option value="-1">(none)</option>${d.headers.map((x,i)=>`<option value="${i}"${i===sel?" selected":""}>${esc(x||"(blank "+(i+1)+")")}</option>`).join("")}</select></div>`;
+    });
+    h+="</div></div>";
+  });
+  if(imp.sch) h+='<p class="hint">If one column holds a range like 7:00 AM - 3:30 PM, pick it as Start time and leave End time as (none).</p>';
+  document.getElementById("impMap").innerHTML=h;
+}
+function saveMap(){
+  const m={};["emp","sch"].forEach(t=>{if(!imp[t])return;m[t]={};FIELDS[t].forEach(([k])=>{const i=ix(t,k);m[t][k]=i>=0?imp[t].headers[i]:""})});
+  storeSet("impMap",JSON.stringify({...JSON.parse(storeGet("impMap")||"{}"),...m}));
+}
+function preview(){
+  const out=document.getElementById("impOut"),btn=document.getElementById("impApply");
+  btn.disabled=true;imp.result=null;
+  if(!imp.emp||!imp.sch){out.innerHTML="";return}
+  saveMap();
+  const date=document.getElementById("date").value,f=hhmm(document.getElementById("check").value),from=isNaN(f)?420:f;
+  const eL=hhmm(document.getElementById("cutE").value),lL=hhmm(document.getElementById("cutL").value);
+  const roles={};
+  imp.emp.rows.forEach(r=>{const rl=roleOf(r[ix("emp","role")]);[ix("emp","name"),ix("emp","id")].forEach(i=>{if(i>=0&&String(r[i]||"").trim())roles[norm(r[i])]=rl||roles[norm(r[i])]||""})});
+  const RL=["Pharmacist","Technician","Associate"],cnt={},hrs={};RL.forEach(r=>{cnt[r]=[0,0,0];hrs[r]=[0,0,0]});
+  const dates=new Set(),unk=new Set();let rowsDay=0,badT=0,used=0;
+  imp.sch.rows.forEach(r=>{
+    const d=pd(r[ix("sch","date")]);if(d)dates.add(d);if(d!==date)return;rowsDay++;
+    const who=r[ix("sch","who")],ri=ix("sch","role");
+    const role=(ri>=0?roleOf(r[ri]):"")||roles[norm(who||"")]||"";
+    if(!RL.includes(role)){unk.add(String(who||"").trim()||"(blank)");return}
+    const ei=ix("sch","end"),t=times(r[ix("sch","start")],ei>=0?r[ei]:undefined);
+    if(!t){badT++;return}
+    used++;cnt[role][t[0]<eL?0:t[0]<lL?1:2]++;
+    [960,1020,1140].forEach((c,i)=>{hrs[role][i]+=Math.max(0,Math.min(t[1],c)-Math.max(t[0],from))/60});
+  });
+  let h="";
+  if(!rowsDay) h=`<p class="hint"><b>No schedule rows found for ${esc(date)}.</b> Dates read from the file: ${esc([...dates].sort().slice(-3).join(", ")||"none. Check the Date column.")}</p>`;
+  else{
+    h=`<table style="margin-top:10px"><tr><th></th><th>Early</th><th>Mid</th><th>Late</th><th>Hrs to 16:00</th><th>to 17:00</th><th>to 19:00</th></tr>`+RL.map(r=>`<tr><td class="left">${r}</td>${cnt[r].map(x=>`<td>${x}</td>`).join("")}${hrs[r].map(x=>`<td>${x.toFixed(1)}</td>`).join("")}</tr>`).join("")+`</table><p class="hint">${used} of ${rowsDay} rows for ${esc(date)} counted. Hours are counted from ${esc(document.getElementById("check").value||"07:00")} (Check time on the Day card; set it to 07:00 for the morning plan). Breaks are not subtracted.</p>`;
+    if(unk.size) h+=`<p class="hint"><b>Skipped (role not found):</b> ${esc([...unk].slice(0,12).join(", "))}${unk.size>12?"…":""}. Check the Role and Employee column choices.</p>`;
+    if(badT) h+=`<p class="hint"><b>${badT} row(s)</b> skipped because the times could not be read.</p>`;
+  }
+  out.innerHTML=h;
+  if(used){imp.result={cnt,hrs};btn.disabled=false}
+}
+function applyImport(){
+  if(!imp.result)return;
+  const P={Pharmacist:"rph",Technician:"tech",Associate:"fa"};
+  for(const [role,pre] of Object.entries(P)){
+    imp.result.cnt[role].forEach((v,k)=>document.getElementById(pre+["E","M","L"][k]).value=v);
+    imp.result.hrs[role].forEach((v,i)=>document.getElementById(pre+["16","17","19"][i]).value=+v.toFixed(2));
+  }
+  calc();
+  document.getElementById("impMsg").textContent="Applied to the board.";
+  document.querySelector('[data-tab="tasks"]').click();
+}
 function today(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
 function checkStale(){const v=document.getElementById("date").value;document.getElementById("stale").hidden=!v||v===today()}
 async function hashPin(p){if(!p)return "";try{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("pharm:"+p));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}catch(e){return "p:"+p}}
@@ -489,6 +594,7 @@ document.body.addEventListener("input", e=>{
   const t = e.target;
   if(t.id==="fbUrl" || t.id==="pin"){ boardOk=false; saveLocal(); return; }
   if(t.id==="date") checkStale();
+  if(["date","check","cutE","cutL"].includes(t.id)) preview();
   if(t.dataset.id){
     state.tasks[t.dataset.id] = state.tasks[t.dataset.id] || {e:0,m:0,l:0,u7:0,v7:0,u11:0,v11:0};
     state.tasks[t.dataset.id][t.dataset.k] = parseFloat(t.value)||0;
@@ -505,6 +611,13 @@ document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
   b.classList.add("on");
   document.getElementById(b.dataset.tab).classList.add("on");
 });
+[["fEmp","emp","Employees"],["fSch","sch","ScheduleFull"]].forEach(([id,key,want])=>document.getElementById(id).addEventListener("change",async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{imp[key]=await loadTab(f,want);document.getElementById("impMsg").textContent=""}
+  catch(err){imp[key]=null;document.getElementById("impMsg").textContent="Could not read "+f.name+": "+err.message}
+  renderMap();preview();
+}));
+document.getElementById("impApply").onclick=applyImport;
 document.getElementById("connect").onclick = pullBoard;
 document.getElementById("pushNow").onclick = pushBoard;
 document.getElementById("reset").onclick = newDay;
