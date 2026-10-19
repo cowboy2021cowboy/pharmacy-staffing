@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pharmacy Daily Staffing</title>
+<style>
+:root{--navy:#1B365D;--teal:#0D7377;--ink:#1a1a1a;--muted:#5c6770;--line:#d8dee6;--bg:#f4f6f8;--card:#fff;--in:#fff8e6;--cold:#d6eaf8;--amb:#fdebd0;--ok:#d5f5e3;--bad:#fadbd8;--fa:#f5eef8}
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--navy);color:#fff;padding:14px 18px;position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:12px}
+header h1{margin:0;font-size:18px}
+header p{margin:4px 0 0;font-size:12px;opacity:.85}
+.badge{font-size:12px;background:#0D7377;padding:4px 8px;border-radius:99px}
+.badge.off{background:#8a5a00}
+.wrap{max-width:1280px;margin:0 auto;padding:14px}
+.row{display:flex;flex-wrap:wrap;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;flex:1;min-width:240px}
+.card h2{margin:0 0 8px;font-size:14px;color:var(--navy)}
+label{font-size:12px;color:var(--muted);display:block;margin-top:6px}
+input,select{width:100%;padding:7px 8px;border:1px solid #c9d1db;border-radius:6px;font-size:14px;background:var(--in)}
+.grid{display:grid;gap:8px}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+table{width:100%;border-collapse:collapse;font-size:13px;background:#fff}
+th{background:var(--navy);color:#fff;padding:7px 5px;text-align:center;position:sticky;top:64px}
+td{border:1px solid var(--line);padding:4px 5px;text-align:center}
+td.left{text-align:left;font-weight:600}
+td input{padding:4px;font-size:13px}
+.rph td.left{background:var(--cold)}
+.tech td.left{background:var(--ok)}
+.fa td.left{background:var(--fa)}
+.cold{background:var(--cold)}
+.amb{background:var(--amb)}
+.ok{background:var(--ok);font-weight:700}
+.short{background:var(--bad);font-weight:700}
+.tight{background:#fdebd0;font-weight:700}
+.hint{font-size:12px;color:var(--muted);margin:6px 0}
+button{background:var(--teal);color:#fff;border:0;border-radius:6px;padding:8px 12px;cursor:pointer}
+button.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
+.tabs{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap}
+.tabs button{background:#e8eef4;color:var(--navy)}
+.tabs button.on{background:var(--navy);color:#fff}
+.section{display:none}
+.section.on{display:block}
+.step{margin:8px 0;padding:8px;background:#f7f9fb;border-radius:8px}
+@media(max-width:800px){th{top:92px}.g3,.g4{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Pharmacy Daily Staffing</h1>
+    <p>One board. Everyone sees the same queue and heads.</p>
+  </div>
+  <div id="status" class="badge off">Not shared yet</div>
+</header>
+<div class="wrap">
+  <div class="row">
+    <div class="card">
+      <h2>Day</h2>
+      <div class="grid g3">
+        <div><label>Date</label><input id="date" type="date"></div>
+        <div><label>Check time</label><input id="check" type="time" value="17:01"></div>
+        <div><label>Rate</label>
+          <select id="scenario">
+            <option value="avg">Average</option>
+            <option value="high" selected>High (study)</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>People on clock (from Now)</h2>
+      <div class="grid g4">
+        <div></div><div><label>To 16:00</label></div><div><label>To 17:00</label></div><div><label>To 19:00</label></div>
+        <div><label>RPh hours</label></div>
+        <input id="rph16" type="number" step="0.5" value="0"><input id="rph17" type="number" step="0.5" value="0"><input id="rph19" type="number" step="0.5" value="0">
+        <div><label>Tech hours</label></div>
+        <input id="tech16" type="number" step="0.5" value="0"><input id="tech17" type="number" step="0.5" value="0"><input id="tech19" type="number" step="0.5" value="0">
+        <div><label>Associate hours</label></div>
+        <input id="fa16" type="number" step="0.5" value="0"><input id="fa17" type="number" step="0.5" value="0"><input id="fa19" type="number" step="0.5" value="0">
+      </div>
+    </div>
+    <div class="card">
+      <h2>Available heads by shift</h2>
+      <div class="grid g4">
+        <div></div><div><label>Early</label></div><div><label>Mid</label></div><div><label>Late</label></div>
+        <div><label>RPh</label></div>
+        <input id="rphE" type="number" step="1" value="0"><input id="rphM" type="number" step="1" value="0"><input id="rphL" type="number" step="1" value="0">
+        <div><label>Tech</label></div>
+        <input id="techE" type="number" step="1" value="0"><input id="techM" type="number" step="1" value="0"><input id="techL" type="number" step="1" value="0">
+        <div><label>Associate</label></div>
+        <input id="faE" type="number" step="1" value="0"><input id="faM" type="number" step="1" value="0"><input id="faL" type="number" step="1" value="0">
+      </div>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="on" data-tab="tasks">Tasks</button>
+    <button data-tab="off">Off floor</button>
+    <button data-tab="fall">Waterfall</button>
+    <button data-tab="share">Share board</button>
+    <button data-tab="how">How to use</button>
+  </div>
+  <div id="tasks" class="section on">
+    <p class="hint">Hours = (units + v-not-pack) ÷ rate. Done 7:00: Early from 7:00, Mid joins 9:00 RPh / 8:30 Tech, Late joins 11:00 / 10:30.</p>
+    <div style="overflow:auto">
+    <table id="taskTable"><thead><tr>
+      <th>Role</th><th>Task</th><th>Rate</th><th>Unit</th>
+      <th>Early</th><th>Mid</th><th>Late</th><th>Total</th>
+      <th>7:00 units</th><th>v-not-pack</th><th>Hours</th><th>Done 7:00</th>
+      <th>11:00 units</th><th>v-not-pack</th><th>Hours</th><th>Done 11:00</th>
+    </tr></thead><tbody></tbody></table>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div class="card" id="leftCard"><h2>Heads left vs available</h2></div>
+      <div class="card" id="coverCard"><h2>Coverage vs net clock</h2></div>
+    </div>
+  </div>
+  <div id="off" class="section">
+    <p class="hint">Type heads or hours pulled to Lab, Inventory, Safecor, or Return. Hours win if both are filled.</p>
+    <table id="offTable"><thead><tr>
+      <th>Activity</th><th>RPh heads</th><th>Tech heads</th><th>FA heads</th><th>RPh hours</th><th>Tech hours</th><th>FA hours</th>
+    </tr></thead><tbody></tbody></table>
+    <div class="card" style="margin-top:12px" id="deductCard"><h2>Hours deducted</h2></div>
+  </div>
+  <div id="fall" class="section">
+    <p class="hint">Cold first. Leftover clock before 4pm goes to ambient. Net clock already removes off-floor hours.</p>
+    <div class="card" id="fallCard"></div>
+  </div>
+  <div id="share" class="section">
+    <div class="card">
+      <h2>Connect the shared board</h2>
+      <p class="hint">Do this once. Then send the website link and the PIN to the team. Everyone edits the same numbers.</p>
+      <div class="step"><b>1.</b> Create a free project at <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a>. Click Build → Realtime Database → Create database → start in test mode.</div>
+      <div class="step"><b>2.</b> Copy the database URL. It looks like <code>https://your-project-default-rtdb.firebaseio.com</code>.</div>
+      <div class="step"><b>3.</b> Paste it below and set a PIN. Save. Host this file on Netlify Drop so the team has one link.</div>
+      <label>Firebase database URL</label>
+      <input id="fbUrl" placeholder="https://your-project-default-rtdb.firebaseio.com">
+      <label>Team PIN</label>
+      <input id="pin" type="password" placeholder="A short password the team knows">
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button id="connect">Connect and load</button>
+        <button class="ghost" id="pushNow">Save now</button>
+      </div>
+      <p id="shareMsg" class="hint"></p>
+    </div>
+  </div>
+  <div id="how" class="section">
+    <div class="card">
+      <h2>How to assign and adjust</h2>
+      <ol>
+        <li>Type the queue at 7:00 (pending + processing + verified-not-packed).</li>
+        <li>Put Early heads on Pens and DRG first. Cold must clear by 4pm.</li>
+        <li>Put remaining Early and Mid on ambient and production.</li>
+        <li>Watch Done 7:00. Cold done after 16:00 means move people now.</li>
+        <li>At 11:00 retype the remaining queue and move heads.</li>
+        <li>Associates do Spark labeling, help RPh Spark, pen line (3 FA per tech), then prepack.</li>
+      </ol>
+      <p class="hint">Pen line rate = tech pen rate ÷ 3. Changes sync about every 8 seconds when the board is connected.</p>
+      <button id="reset">Clear all inputs</button>
+    </div>
+  </div>
+</div>
+<script>
+const mem = {};
+function storeGet(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k]||null; } }
+function storeSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){ mem[k]=v; } }
+function storeDel(k){ try{ localStorage.removeItem(k); }catch(e){ delete mem[k]; } }
+const TASKS = [
+  {id:"sparkV", role:"Pharmacist", name:"Sparks verify", unit:"orders", rates:{low:80,avg:100,high:147.7}},
+  {id:"drgV", role:"Pharmacist", name:"DRG verify (all)", unit:"orders", rates:{low:80,avg:100,high:142}},
+  {id:"pillV", role:"Pharmacist", name:"Pills verify", unit:"orders", rates:{low:80,avg:100,high:128.3}},
+  {id:"penV", role:"Pharmacist", name:"Pens verify", unit:"orders", rates:{low:80,avg:100,high:125.1}},
+  {id:"penP", role:"Technician", name:"Pens pack", unit:"orders", rates:{low:80,avg:100,high:110}},
+  {id:"pillP", role:"Technician", name:"Pills pack", unit:"orders", rates:{low:62.5,avg:80,high:82}},
+  {id:"mMail", role:"Technician", name:"M DRG Mailer pack", unit:"orders", rates:{low:36,avg:45,high:53}},
+  {id:"qMail", role:"Technician", name:"Q DRG Mailer pack", unit:"orders", rates:{low:24,avg:30,high:31}},
+  {id:"fill", role:"Technician", name:"Spark filling", unit:"doses", rates:{low:1200,avg:1500,high:1714.8}},
+  {id:"labT", role:"Technician", name:"Spark labeling", unit:"orders", rates:{low:700,avg:850,high:1000}},
+  {id:"helpQ", role:"Technician", name:"Help RPh DRG quarterly", unit:"orders", rates:{low:80,avg:100,high:146.9}},
+  {id:"bottle", role:"Technician", name:"DRG bottling (last)", unit:"bags", rates:{low:0.8,avg:1,high:1.154}},
+  {id:"labF", role:"Associate", name:"Spark labeling", unit:"orders", rates:{low:700,avg:850,high:1000}},
+  {id:"helpS", role:"Associate", name:"Help RPh Spark", unit:"orders", rates:{low:80,avg:100,high:147.7}},
+  {id:"penL", role:"Associate", name:"Pen pack line (3 FA / line)", unit:"orders", rates:{low:80/3,avg:100/3,high:110/3}},
+  {id:"pre", role:"Associate", name:"Prepack supplies (next day)", unit:"hours", rates:{low:1,avg:1,high:1}}
+];
+const OFF = ["Lab","Inventory","Safecor","Return"];
+const META = ["date","check","scenario","rph16","rph17","rph19","tech16","tech17","tech19","fa16","fa17","fa19","rphE","rphM","rphL","techE","techM","techL","faE","faM","faL"];
+const state = {tasks:{}, off:{}};
+let applying = false, saveTimer = null, lastStamp = 0;
+function rateOf(t){ return t.rates[document.getElementById("scenario").value] || t.rates.high }
+function n(id){ return parseFloat(document.getElementById(id).value)||0 }
+function hm(mins){
+  if(!isFinite(mins)) return "";
+  mins = ((mins%1440)+1440)%1440;
+  const h = Math.floor(mins/60), m = Math.round(mins%60);
+  return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
+}
+function done7(hrs, e, m, l, role){
+  if(hrs<=0 || e+m+l<=0) return "";
+  const mid = role==="Pharmacist"? 9*60 : 8*60+30;
+  const late = role==="Pharmacist"? 11*60 : 10*60+30;
+  const ee = role==="Pharmacist"? 15*60 : 15*60+30;
+  const me = 17*60, le = 19*60, start = 7*60;
+  let left = hrs, t = start;
+  const phases = [[mid,e],[late,e+m],[ee,e+m+l],[me,m+l],[le,l]];
+  for(const [end, heads] of phases){
+    if(t>=end) continue;
+    const cap = Math.max(0, heads)*(end-t)/60;
+    if(heads<=0){ t = end; continue }
+    if(left<=cap) return hm(t + left/heads*60);
+    left -= cap; t = end;
+  }
+  return l>0 ? hm(le + left/l*60) : "after 19:00";
+}
+function done11(hrs, e, m, l, role){
+  if(hrs<=0 || e+m+l<=0) return "";
+  const ee = role==="Pharmacist"? 15*60 : 15*60+30;
+  const me = 17*60, le = 19*60, start = 11*60;
+  let left = hrs, t = start;
+  const phases = [[ee,e+m+l],[me,m+l],[le,l]];
+  for(const [end, heads] of phases){
+    if(t>=end) continue;
+    const cap = Math.max(0,heads)*(end-t)/60;
+    if(heads<=0){ t=end; continue }
+    if(left<=cap) return hm(t+left/heads*60);
+    left -= cap; t = end;
+  }
+  return l>0 ? hm(le+left/l*60) : "after 19:00";
+}
+function status(gap){ return gap<=-1?"SHORT":gap<0?"TIGHT":"OK" }
+function cls(s){ return s==="SHORT"?"short":s==="TIGHT"?"tight":"ok" }
+function fbBase(){
+  let u = (document.getElementById("fbUrl").value||"").trim().replace(/\/+$/,"");
+  if(u && !u.startsWith("http")) u = "https://"+u;
+  return u;
+}
+function setStatus(ok, text){
+  const el = document.getElementById("status");
+  el.textContent = text;
+  el.className = "badge"+(ok?"":" off");
+}
+function renderTasks(){
+  const tb = document.querySelector("#taskTable tbody");
+  tb.innerHTML = "";
+  TASKS.forEach(t=>{
+    const s = state.tasks[t.id] || {e:0,m:0,l:0,u7:0,v7:0,u11:0,v11:0};
+    const tr = document.createElement("tr");
+    tr.className = t.role==="Pharmacist"?"rph":t.role==="Technician"?"tech":"fa";
+    tr.innerHTML = `<td class="left">${t.role}</td><td class="left">${t.name}</td><td>${rateOf(t).toFixed(1)}</td><td>${t.unit}</td>
+      <td><input data-k="e" data-id="${t.id}" type="number" step="0.5" value="${s.e}"></td>
+      <td><input data-k="m" data-id="${t.id}" type="number" step="0.5" value="${s.m}"></td>
+      <td><input data-k="l" data-id="${t.id}" type="number" step="0.5" value="${s.l}"></td>
+      <td id="tot-${t.id}">0</td>
+      <td><input data-k="u7" data-id="${t.id}" type="number" step="1" value="${s.u7}"></td>
+      <td><input data-k="v7" data-id="${t.id}" type="number" step="1" value="${s.v7}"></td>
+      <td id="h7-${t.id}">0</td><td id="d7-${t.id}"></td>
+      <td><input data-k="u11" data-id="${t.id}" type="number" step="1" value="${s.u11}"></td>
+      <td><input data-k="v11" data-id="${t.id}" type="number" step="1" value="${s.v11}"></td>
+      <td id="h11-${t.id}">0</td><td id="d11-${t.id}"></td>`;
+    tb.appendChild(tr);
+  });
+}
+function renderOff(){
+  const tb = document.querySelector("#offTable tbody");
+  tb.innerHTML = "";
+  OFF.forEach(name=>{
+    const s = state.off[name] || {rh:0,th:0,fh:0,rhr:0,thr:0,fhr:0};
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td class="left">${name}</td>`+["rh","th","fh","rhr","thr","fhr"].map(k=>`<td><input data-off="${name}" data-k="${k}" type="number" step="0.5" value="${s[k]}"></td>`).join("");
+    tb.appendChild(tr);
+  });
+}
+function calc(){
+  let sum = {Pharmacist:{e:0,m:0,l:0,h:0}, Technician:{e:0,m:0,l:0,h:0}, Associate:{e:0,m:0,l:0,h:0}};
+  TASKS.forEach(t=>{
+    const s = state.tasks[t.id] || {e:0,m:0,l:0,u7:0,v7:0,u11:0,v11:0};
+    const rate = rateOf(t);
+    const h7 = rate? (s.u7+s.v7)/rate : 0;
+    const h11 = rate? (s.u11+s.v11)/rate : 0;
+    const tot = document.getElementById("tot-"+t.id);
+    if(!tot) return;
+    tot.textContent = (s.e+s.m+s.l).toFixed(1);
+    document.getElementById("h7-"+t.id).textContent = h7.toFixed(2);
+    document.getElementById("h11-"+t.id).textContent = h11.toFixed(2);
+    document.getElementById("d7-"+t.id).textContent = done7(h7, s.e, s.m, s.l, t.role);
+    document.getElementById("d11-"+t.id).textContent = done11(h11, s.e, s.m, s.l, t.role);
+    sum[t.role].e += s.e; sum[t.role].m += s.m; sum[t.role].l += s.l; sum[t.role].h += h7;
+  });
+  const avail = {Pharmacist:[n("rphE"),n("rphM"),n("rphL")], Technician:[n("techE"),n("techM"),n("techL")], Associate:[n("faE"),n("faM"),n("faL")]};
+  let html = "<table><tr><th></th><th>Early left</th><th>Mid left</th><th>Late left</th></tr>";
+  for(const role of ["Pharmacist","Technician","Associate"]){
+    const a = avail[role], s = sum[role];
+    html += `<tr><td class="left">${role}</td>
+      <td class="${s.e>a[0]?'short':'ok'}">${(a[0]-s.e).toFixed(1)}</td>
+      <td class="${s.m>a[1]?'short':'ok'}">${(a[1]-s.m).toFixed(1)}</td>
+      <td class="${s.l>a[2]?'short':'ok'}">${(a[2]-s.l).toFixed(1)}</td></tr>`;
+  }
+  document.getElementById("leftCard").innerHTML = "<h2>Heads left vs available</h2>"+html+"</table><p class='hint'>Negative = over-assigned that shift.</p>";
+  const deduct = deductHours();
+  const clock = {Pharmacist:[n("rph16"),n("rph19")], Technician:[n("tech16"),n("tech19")], Associate:[n("fa16"),n("fa19")]};
+  let chtml = "<table><tr><th></th><th>Hours needed</th><th>Net clock</th><th>Gap</th><th></th></tr>";
+  for(const role of ["Pharmacist","Technician","Associate"]){
+    const need = sum[role].h;
+    const net16 = Math.max(0, clock[role][0]-deduct[role][0]);
+    const net19 = Math.max(0, clock[role][1]-deduct[role][2]);
+    const g16 = net16-need, g19 = net19-need;
+    chtml += `<tr><td class="left">${role} vs 16:00</td><td>${need.toFixed(1)}</td><td>${net16.toFixed(1)}</td><td class="${cls(status(g16))}">${g16.toFixed(1)}</td><td class="${cls(status(g16))}">${status(g16)}</td></tr>`;
+    chtml += `<tr><td class="left">${role} vs 19:00</td><td>${need.toFixed(1)}</td><td>${net19.toFixed(1)}</td><td class="${cls(status(g19))}">${g19.toFixed(1)}</td><td class="${cls(status(g19))}">${status(g19)}</td></tr>`;
+  }
+  document.getElementById("coverCard").innerHTML = "<h2>Coverage vs net clock</h2>"+chtml+"</table>";
+  let dhtml = "<table><tr><th></th><th>To 16:00</th><th>To 17:00</th><th>To 19:00</th></tr>";
+  for(const role of ["Pharmacist","Technician","Associate"]){
+    dhtml += `<tr><td class="left">${role}</td>${deduct[role].map(x=>`<td>${x.toFixed(2)}</td>`).join("")}</tr>`;
+  }
+  document.getElementById("deductCard").innerHTML = "<h2>Hours deducted</h2>"+dhtml+"</table><p class='hint'>Typed hours come off all three. Heads only use average hours left to that cutoff.</p>";
+  waterfall(deduct);
+  saveLocal();
+  if(!applying) schedulePush();
+}
+function deductHours(){
+  const people = {Pharmacist:n("rphE")+n("rphM")+n("rphL"), Technician:n("techE")+n("techM")+n("techL"), Associate:n("faE")+n("faM")+n("faL")};
+  const hrs = {Pharmacist:[n("rph16"),n("rph17"),n("rph19")], Technician:[n("tech16"),n("tech17"),n("tech19")], Associate:[n("fa16"),n("fa17"),n("fa19")]};
+  const out = {Pharmacist:[0,0,0], Technician:[0,0,0], Associate:[0,0,0]};
+  OFF.forEach(name=>{
+    const s = state.off[name] || {rh:0,th:0,fh:0,rhr:0,thr:0,fhr:0};
+    [["Pharmacist",s.rh,s.rhr],["Technician",s.th,s.thr],["Associate",s.fh,s.fhr]].forEach(([role,heads,hours])=>{
+      for(let i=0;i<3;i++){
+        if(hours>0) out[role][i] += hours;
+        else if(heads>0 && people[role]>0) out[role][i] += heads*(hrs[role][i]/people[role]);
+      }
+    });
+  });
+  return out;
+}
+function waterfall(deduct){
+  const hoursOf = ids => ids.reduce((a,id)=>{
+    const t = TASKS.find(x=>x.id===id);
+    const s = state.tasks[id] || {u7:0,v7:0};
+    const rate = rateOf(t);
+    return a + (rate? (s.u7+s.v7)/rate : 0);
+  },0);
+  const coldV = hoursOf(["penV"]), coldP = hoursOf(["penP"]);
+  const ambV = hoursOf(["sparkV","drgV","pillV"]), ambP = hoursOf(["pillP","mMail","qMail"]);
+  const rph16 = Math.max(0, n("rph16")-deduct.Pharmacist[0]);
+  const tech16 = Math.max(0, n("tech16")-deduct.Technician[0]);
+  const rph19 = Math.max(0, n("rph19")-deduct.Pharmacist[2]);
+  const tech19 = Math.max(0, n("tech19")-deduct.Technician[2]);
+  const leftV = Math.max(0, rph16-coldV), leftP = Math.max(0, tech16-coldP);
+  const stillV = Math.max(0, ambV-leftV), stillP = Math.max(0, ambP-leftP);
+  const eveV = Math.max(0, rph19-rph16), eveP = Math.max(0, tech19-tech16);
+  const gapV = eveV-stillV, gapP = eveP-stillP;
+  const row = (lab,v,p,fl="") => `<tr class="${fl}"><td class="left">${lab}</td><td>${v.toFixed(1)}</td><td>${p.toFixed(1)}</td></tr>`;
+  document.getElementById("fallCard").innerHTML = `<h2>Waterfall from 7:00 hours</h2><table>
+    <tr><th></th><th>Verify (RPh)</th><th>Pack (Tech)</th></tr>
+    ${row("Cold hours needed",coldV,coldP,"cold")}
+    ${row("Net clock to 4pm",rph16,tech16)}
+    ${row("Left after cold",leftV,leftP)}
+    ${row("Ambient hours needed",ambV,ambP,"amb")}
+    ${row("Still needed after 4pm",stillV,stillP,"amb")}
+    ${row("Net clock 4pm to 7pm",eveV,eveP)}
+    ${row("Gap after 4pm",gapV,gapP)}
+    <tr><td class="left">Status</td><td class="${cls(status(rph16-coldV))}">${rph16>=coldV?"COLD OK":"COLD SHORT"} / ${status(gapV)==="OK"?"EVE OK":"EVE "+status(gapV)}</td><td class="${cls(status(tech16-coldP))}">${tech16>=coldP?"COLD OK":"COLD SHORT"} / ${status(gapP)==="OK"?"EVE OK":"EVE "+status(gapP)}</td></tr>
+  </table><p class="hint">Negative gap = short after 4pm. Cold short = move people onto Pens now.</p>`;
+}
+function snapshot(){
+  const meta = {};
+  META.forEach(id=>meta[id]=document.getElementById(id).value);
+  return {pin:document.getElementById("pin").value, stamp:Date.now(), meta, tasks:state.tasks, off:state.off};
+}
+function applySnapshot(d){
+  if(!d) return;
+  applying = true;
+  Object.assign(state.tasks, d.tasks||{});
+  Object.assign(state.off, d.off||{});
+  if(d.meta) for(const [k,v] of Object.entries(d.meta)){
+    const el = document.getElementById(k);
+    if(el) el.value = v;
+  }
+  lastStamp = d.stamp||0;
+  renderTasks();
+  renderOff();
+  calc();
+  applying = false;
+}
+function saveLocal(){
+  storeSet("pharmStaff", JSON.stringify(snapshot()));
+  storeSet("fbUrl", document.getElementById("fbUrl").value);
+  storeSet("pin", document.getElementById("pin").value);
+}
+function loadLocal(){
+  const raw = storeGet("pharmStaff");
+  if(storeGet("fbUrl")) document.getElementById("fbUrl").value = storeGet("fbUrl");
+  if(storeGet("pin")) document.getElementById("pin").value = storeGet("pin");
+  if(!raw) return;
+  try{ applySnapshot(JSON.parse(raw)); }catch(e){}
+}
+function schedulePush(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(pushBoard, 600);
+}
+async function pushBoard(){
+  const base = fbBase();
+  if(!base) return;
+  const body = snapshot();
+  lastStamp = body.stamp;
+  try{
+    const res = await fetch(base+"/board.json", {method:"PUT", body:JSON.stringify(body)});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    setStatus(true, "Shared · saved");
+    document.getElementById("shareMsg").textContent = "Saved to the shared board.";
+  }catch(e){
+    setStatus(false, "Share error");
+    document.getElementById("shareMsg").textContent = "Could not save. Check the Firebase URL and that the database is in test mode. "+e.message;
+  }
+}
+async function pullBoard(){
+  const base = fbBase();
+  if(!base) return;
+  try{
+    const res = await fetch(base+"/board.json");
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const d = await res.json();
+    if(!d){ setStatus(true, "Shared · empty"); return; }
+    if(d.pin && document.getElementById("pin").value && d.pin !== document.getElementById("pin").value){
+      document.getElementById("shareMsg").textContent = "PIN does not match the board.";
+      setStatus(false, "Wrong PIN");
+      return;
+    }
+    if((d.stamp||0) > lastStamp) applySnapshot(d);
+    setStatus(true, "Shared · live");
+    document.getElementById("shareMsg").textContent = "Connected. Team changes show up within a few seconds.";
+  }catch(e){
+    setStatus(false, "Share error");
+    document.getElementById("shareMsg").textContent = "Could not load. "+e.message;
+  }
+}
+document.getElementById("date").value = new Date().toISOString().slice(0,10);
+loadLocal();
+if(!document.querySelector("#taskTable tbody").children.length){ renderTasks(); renderOff(); }
+calc();
+document.body.addEventListener("input", e=>{
+  const t = e.target;
+  if(t.id==="fbUrl" || t.id==="pin"){ saveLocal(); return; }
+  if(t.dataset.id){
+    state.tasks[t.dataset.id] = state.tasks[t.dataset.id] || {e:0,m:0,l:0,u7:0,v7:0,u11:0,v11:0};
+    state.tasks[t.dataset.id][t.dataset.k] = parseFloat(t.value)||0;
+  }
+  if(t.dataset.off){
+    state.off[t.dataset.off] = state.off[t.dataset.off] || {rh:0,th:0,fh:0,rhr:0,thr:0,fhr:0};
+    state.off[t.dataset.off][t.dataset.k] = parseFloat(t.value)||0;
+  }
+  calc();
+});
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("on"));
+  document.querySelectorAll(".section").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");
+  document.getElementById(b.dataset.tab).classList.add("on");
+});
+document.getElementById("connect").onclick = pullBoard;
+document.getElementById("pushNow").onclick = pushBoard;
+document.getElementById("reset").onclick=()=>{
+  if(confirm("Clear all typed numbers on this device?")){ storeDel("pharmStaff"); location.reload(); }
+};
+setInterval(()=>{ if(fbBase()) pullBoard(); }, 8000);
+if(fbBase()) pullBoard();
+</script>
+</body>
+</html>
